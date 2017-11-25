@@ -38,8 +38,8 @@ if __name__ == "__main__":
     slack_token = f.read().strip()
     f.close()
     sc = SlackClient(slack_token)
-    kudos = Kudos()
-    ticket = Ticket()
+    kudos = Kudos(sc)
+    ticket = Ticket(sc)
 
     if sc.rtm_connect():
         while True:

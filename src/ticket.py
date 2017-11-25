@@ -1,3 +1,4 @@
+import re
 from pprint import pprint
 import yaml
 import requests
@@ -5,7 +6,8 @@ import traceback
 from listener import Listener
 
 class Ticket:
-    def __init__(self):
+    def __init__(self, client):
+        self.client = client
         self.base_url = "https://support.oit.pdx.edu/NoAuthCAS/REST/1.0/"
         self.cookies = None  # Not logged in if None.
 
@@ -25,10 +27,26 @@ class Ticket:
 
 
     def on_message(self, ctx):
-        if ctx.command in ["!ticket"]:
-            if len(ctx.args) == 1:
-                pass
-                self.get_ticket(ctx.args[0])
+        try:  # Don't exit the bot when an error happens.
+            if ctx.command in ["!ticket"]:
+                if len(ctx.args) == 1:
+                    try:
+                        self.get_ticket(ctx.args[0])
+                    except TypeError as e:
+                        if len(e.args) and e.args[0] == "Numeric only":
+                            self.client.rtm_send_message(ctx.channel, "Please enter ticket numbers only!")
+                        else:
+                            traceback.print_exc()
+                    except LookupError as e:
+                        if len(e.args) and e.args[0] == "Ticket doesn't exist":
+                            self.client.rtm_send_message(ctx.channel, "That ticket doesn't exist!")
+                        else:
+                            traceback.print_exc()
+        except:
+            self.client.rtm_send_message(ctx.channel, "An error has occured in the bot...")
+            traceback.print_exc()
+
+
 
     def login(self):
         payload = {"user": self.username, "pass": self.password}
@@ -48,18 +66,34 @@ class Ticket:
         """
         ticket_url = self.base_url + "ticket/" + str(ticket_number) + "/history?format=l"
         text = self.get_url(ticket_url)
+        self.validate_ticket(text)
         self.parse_ticket(text)
-        
+
+
+    def validate_ticket(self, text):
+        to_validate = text.splitlines()[2]
+        if (re.match("# Objects of type ticket must be specified by numeric id\.", to_validate) or
+            re.match("# Invalid object specification\:", to_validate)):
+            raise TypeError("Numeric only")
+        if re.match("# Ticket [0-9]+ does not exist\.", to_validate):
+            raise LookupError("Ticket doesn't exist")
+        return True
 
     def parse_ticket(self, text):
         # Parsing might require some optimizations. We're dealing with pretty large number of lines.
-        trimmed_text = text[text.find('\n')+1:]  # Trim the first line (get rid of HTTP code)
+        # Trim the first two lines (get rid of HTTP code)
+        trimmed_text = text[text.find('\n', text.find('\n')+1)+1:]
         history_list = trimmed_text.split("--\n\n#")  # Split the ticket into histories.
 
-        for history in history_list:
+        for i in range(len(history_list)):
             # Trim the first 2 lines (get rid of "#37/37 (id/.....")
+            history = history_list[i]
             history = history[history.find('\n')+1:]
             history = history.replace("Content:", "Content: |\n")
+            history = yaml.load(history)
+            history_list[i] = history
+
+        pprint(history_list)
 
 
     def get_url(self, url):
