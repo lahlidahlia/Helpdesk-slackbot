@@ -1,3 +1,4 @@
+import time
 import re
 from pprint import pprint
 import yaml
@@ -28,6 +29,23 @@ class Ticket:
 
     def on_message(self, ctx):
         try:  # Don't exit the bot when an error happens.
+            if ctx.command == "!a":
+                error_count = 0
+                error_list = []
+                start_time = time.time()
+                for i in range(int(ctx.args[0])):
+                    try:
+                        print(i)
+                        self.get_ticket(700000 - i)
+                    except:
+                        error_count += 1
+                        error_list.append(i)
+                        traceback.print_exc()
+                end_time = time.time()
+                time_elapsed = end_time - start_time
+                to_send = "Time elapsed: " + str(time_elapsed) + "\n" + "Error count: " + str(error_count)
+                self.client.rtm_send_message(ctx.channel, "Time elapsed: " + to_send)
+
             if ctx.command in ["!ticket"]:
                 if len(ctx.args) == 1:
                     try:
@@ -45,7 +63,6 @@ class Ticket:
         except:
             self.client.rtm_send_message(ctx.channel, "An error has occured in the bot...")
             traceback.print_exc()
-
 
 
     def login(self):
@@ -67,10 +84,14 @@ class Ticket:
         ticket_url = self.base_url + "ticket/" + str(ticket_number) + "/history?format=l"
         text = self.get_url(ticket_url)
         self.validate_ticket(text)
-        self.parse_ticket(text)
+        return self.parse_ticket(text)
 
 
     def validate_ticket(self, text):
+        """
+        Check to make sure input ticket number is good.
+        Raise some errors if not.
+        """
         to_validate = text.splitlines()[2]
         if (re.match("# Objects of type ticket must be specified by numeric id\.", to_validate) or
             re.match("# Invalid object specification\:", to_validate)):
@@ -79,21 +100,34 @@ class Ticket:
             raise LookupError("Ticket doesn't exist")
         return True
 
+
     def parse_ticket(self, text):
+        """
+        text (str): Entire text returned from ticket request.
+        Returns a list of histories. Histories are events that happen in the ticket.
+        Each history is a dictionary.
+        """
         # Parsing might require some optimizations. We're dealing with pretty large number of lines.
         # Trim the first two lines (get rid of HTTP code)
-        trimmed_text = text[text.find('\n', text.find('\n')+1)+1:]
-        history_list = trimmed_text.split("--\n\n#")  # Split the ticket into histories.
+        text = text[text.find('\n', text.find('\n')+1)+1:]
 
+        line_split = text.splitlines()
+        for i in range(len(line_split)):
+            # Modify the yaml so that each value become a multiline string.
+            # Otherwise special characters like # or : is not escaped properly.
+            if line_split[i] and line_split[i][0] != ' ':
+                line_split[i] = line_split[i].replace(":", ": |\n", 1)
+
+        history_list = "\n".join(line_split).split("--\n\n#")  # Split the ticket into histories.
+
+        # Parse into yaml.
         for i in range(len(history_list)):
-            # Trim the first 2 lines (get rid of "#37/37 (id/.....")
             history = history_list[i]
+            # Trim one line from beginning.
             history = history[history.find('\n')+1:]
-            history = history.replace("Content:", "Content: |\n")
-            history = yaml.load(history)
-            history_list[i] = history
+            history_list[i] = yaml.load(history)
 
-        pprint(history_list)
+        return history_list
 
 
     def get_url(self, url):
