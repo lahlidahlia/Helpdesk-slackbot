@@ -1,5 +1,6 @@
 class Listener:
     listeners = {"on_message": [],
+                 "on_ready": [],
 		}
 
     @classmethod

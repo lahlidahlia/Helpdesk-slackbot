@@ -42,6 +42,7 @@ if __name__ == "__main__":
     ticket = Ticket(sc)
 
     if sc.rtm_connect():
+        Listener.update("on_ready")
         while True:
             parse_events(sc.rtm_read())
             time.sleep(0.3)
