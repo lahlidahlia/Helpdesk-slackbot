@@ -1,3 +1,4 @@
+from rt_stat import RT_Stat
 from rt import RT
 from listener import Listener
 import traceback
@@ -6,7 +7,7 @@ class Ticket:
         self.client = client
         Listener.register(self.on_ready, "on_ready")
         Listener.register(self.on_message, "on_message")
-        self.rt = RT()
+        self.rt_stat = RT_Stat()
         self.ticket_url = "https://support.oit.pdx.edu/Ticket/Display.html?id="
 
 
@@ -33,6 +34,30 @@ class Ticket:
                             self.client.rtm_send_message(ctx.channel, "That ticket doesn't exist!")
                         else:
                             raise LookupError
+
+            if ctx.command in ["!response"]:
+                if len(ctx.args) == 1:
+                    try:
+                        days_ago = int(ctx.args[0])
+                        if days_ago < 0:
+                            self.client.rtm_send_message(ctx.channel, "Positive numbers please!")
+                    except ValueError:
+                        traceback.print_exc()
+                        self.client.rtm_send_message(ctx.channel, "Invalid value. Please enter amount of days.")
+                        return
+                    avg_time = self.rt_stat.get_average_response_time(days_ago)
+                    avg_time = self.seconds_to_hms(avg_time)
+                    self.client.rtm_send_message(ctx.channel, "Average response time: {} hours, {} minutes and {} seconds.".format(*avg_time))
+                
         except:
             self.client.rtm_send_message(ctx.channel, "An error has occured in the bot... :thinking_face:")
             traceback.print_exc()
+
+
+    def seconds_to_hms(self, seconds):
+        """
+        Convert seconds to H:M:S in a tuple.
+        """
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        return (h, m, s)

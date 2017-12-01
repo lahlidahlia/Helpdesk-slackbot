@@ -7,16 +7,22 @@ import yaml
 import requests
 import traceback
 
-class RT:
-    def __init__(self):
-        self.base_url = "https://support.oit.pdx.edu/NoAuthCAS/REST/1.0/"
-        self.cookies = None  # Not logged in if None.
-        self.cache_dir = "../ticket_cache/"
+def call_clsinit(cls):
+    cls.__clsinit__()
+    return cls
 
+@call_clsinit
+class RT:
+    base_url = "https://support.oit.pdx.edu/NoAuthCAS/REST/1.0/"
+    cookies = None  # Not logged in if None.
+    cache_dir = "../ticket_cache/"
+
+    @classmethod
+    def __clsinit__(cls):
         try:
             # Read in user/pass.
             f = open("../tokens/rt")
-            self.username, self.password = tuple(f.read().strip().split(":"))
+            cls.username, cls.password = tuple(f.read().strip().split(":"))
             f.close()
         except Exception as e:
             traceback.print_exc()
@@ -25,57 +31,67 @@ class RT:
             f.close()
             exit()
 
-        self.login()
+        cls.login()
         #now.strftime("%Y-%m-%d")
 
 
-    def login(self):
-        payload = {"user": self.username, "pass": self.password}
-        r = requests.post(self.base_url, data=payload)
+    @classmethod
+    def login(cls):
+        payload = {"user": cls.username, "pass": cls.password}
+        r = requests.post(cls.base_url, data=payload)
         if r.status_code == 200:
-            print("Logged in successfully as " + self.username + "!")
-            self.cookies = r.cookies
+            print("Logged in successfully as " + cls.username + "!")
+            cls.cookies = r.cookies
         elif r.status_code == 302:
             # 302 means you got redirected to SSO.
             print("Your username or password is incorrect!")
             exit()
 
 
-    def update_cache(self):
+    @classmethod
+    def update_cache(cls):
         """
         Update the ticket since the last time it was updated.
         There needs to be a file in the cache called last_updated.
         """
         last_updated_date = ""
-        with open(self.cache_dir + "last_updated") as f:
+        with open(cls.cache_dir + "last_updated") as f:
             last_updated_date = f.read().strip()
 
         query = "Queue = 'uss-helpdesk' AND LastUpdated > '" + last_updated_date + "'"
-        tickets = self.rest_search_query(query)
+        tickets = cls.rest_search_query(query)
         print("Updating " + str(len(tickets)) + " tickets!")
         for ticket in tickets:
-            self.update_ticket_cache(ticket)
+            cls.update_cache_ticket(ticket)
 
-        with open(self.cache_dir + "last_updated", "w") as f:
-            f.write(datetime.now().strftime("%Y-%m-%d"))
+        with open(cls.cache_dir + "last_updated", "w") as f:
+            f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
-    def update_ticket_cache(self, ticket_number):
+    @classmethod
+    def get_cache_last_updated(cls):
+        with open(cls.cache_dir + "last_updated") as f:
+            return f.read().strip()
+        
+
+    @classmethod
+    def update_cache_ticket(cls, ticket_number):
         try:
             print(str(ticket_number))
-            data = self.get_ticket(ticket_number)
-            with open(self.cache_dir + str(ticket_number) + ".yaml", "w") as f:
+            data = cls.get_ticket(ticket_number)
+            with open(cls.cache_dir + str(ticket_number) + ".yaml", "w") as f:
                 f.write(yaml.dump(data))
         except:
             print("Error on " + str(ticket_number))
-            with open(self.cache_dir + "error.log", "a") as f:
+            with open(cls.cache_dir + "error.log", "a") as f:
                 f.write(datetime.now())
                 f.write("Ticket: " + str(ticket_number))
                 f.write(traceback.format_exc())
                 f.write("---------------------")
         
 
-    def get_ticket(self, ticket_number):
+    @classmethod
+    def get_ticket(cls, ticket_number):
         """ 
         Returns a ticket's properties and list of histories in a dictionary.
 
@@ -83,67 +99,79 @@ class RT:
         - Type error if ticket number is not a number.
         - LookupError if ticket doesn't exist.            
         """
+        ticket_number = int(ticket_number)
         # Get histories first because it has better ticket validation.
-        histories = self.rest_get_ticket_histories(ticket_number)
-        properties = self.rest_get_ticket_properties(ticket_number)
+        histories = cls.rest_get_ticket_histories(ticket_number)
+        properties = cls.rest_get_ticket_properties(ticket_number)
         properties["histories"] = histories
         return properties
 
 
-    def get_ticket_from_cache(self, ticket_number):
+    @classmethod
+    def get_ticket_from_cache(cls, ticket_number):
         """
         Return the ticket as a dictionary from the cache.
         Returns None if the ticket isn't cached.
         """
-        file_name = self.cache_dir + str(ticket_number) + ".yaml"
+        file_name = cls.cache_dir + str(ticket_number) + ".yaml"
         if not os.path.isfile(file_name):
             return None
 
+        print("Retrieved ticket " + str(ticket_number))
         with open(file_name) as f:
             return yaml.load(f.read())
 
-
-    def rest_search_query(self, query, orderby="-created", format_="i"):
+    @classmethod
+    def rest_search_query(cls, query, orderby="-created", format_="i"):
         """ Run the given search query and return a list of ticket numbers. """
-        url = self.base_url + "search/ticket?query= " + query + "&orderby=" + orderby + "&format=" + format_
-        text = self.rest_get_url(url)
+        url = cls.base_url + "search/ticket?query= " + query + "&orderby=" + orderby + "&format=" + format_
+        print("Query URL: " + url)
+        text = cls.rest_get_url(url)
+        print("Got query!")
         return [int(x.split("/")[1]) for x in text.strip().splitlines()[2:]]
 
 
-    def rest_get_ticket_properties(self, ticket_number):
+    @classmethod
+    def rest_get_ticket_properties(cls, ticket_number):
         """
         ticket_number (int)
         Get the ticket number's properties from the rest API in text form.
         """
-        ticket_url = self.base_url + "ticket/" + str(ticket_number) + "/show"
-        text = self.rest_get_url(ticket_url)
-        return self.rest_parse_ticket_properties(text)
+        ticket_url = cls.base_url + "ticket/" + str(ticket_number) + "/show"
+        text = cls.rest_get_url(ticket_url)
+        return cls.rest_parse_ticket_properties(text)
 
 
-    def rest_parse_ticket_properties(self, text):
+    @classmethod
+    def rest_parse_ticket_properties(cls, text):
         """
         Return a dictionary containing ticket's properties.
         """
         # Trim first two lines.
         text = text[text.find('\n', text.find('\n')+1)+1:]
-        text = self.fix_yaml(text)
+        text = cls.fix_yaml(text)
+        properties = yaml.load(text)
+        for k in properties:
+            properties[k] = properties[k].strip()
+        return properties
 
-        return yaml.load(text)
 
-
-    def rest_get_ticket_histories(self, ticket_number):
+    @classmethod
+    def rest_get_ticket_histories(cls, ticket_number):
         """
         ticket_number (int)
         Get the ticket number's histories from the rest API as a dictionary.
         Raise errors according to rest_validate_ticket.
         """
-        ticket_url = self.base_url + "ticket/" + str(ticket_number) + "/history?format=l"
-        text = self.rest_get_url(ticket_url)
-        self.rest_validate_ticket_histories(text)
-        return self.rest_parse_ticket_histories(text)
+        ticket_url = cls.base_url + "ticket/" + str(ticket_number) + "/history?format=l"
+        text = cls.rest_get_url(ticket_url)
+        cls.rest_validate_ticket_histories(text)
+        histories = cls.rest_parse_ticket_histories(text)
+        return histories
 
 
-    def rest_validate_ticket_histories(self, text):
+    @classmethod
+    def rest_validate_ticket_histories(cls, text):
         """
         Check to make sure input ticket number is good.
         Raise some errors if not.
@@ -161,43 +189,49 @@ class RT:
         return True
 
 
-    def rest_parse_ticket_histories(self, text):
+    @classmethod
+    def rest_parse_ticket_histories(cls, text):
         """
         text (str): Entire text returned from ticket history request.
         Returns a list of histories. Histories are events that happen in the ticket.
         Each history is a dictionary.
         """
-        history_list = self.fix_yaml(text).split("--\n\n#")
+        history_list = cls.fix_yaml(text).split("--\n\n#")
 
         # Parse into yaml.
         for i in range(len(history_list)):
             history = history_list[i]
             # Trim one line from beginning.
             history = history[history.find('\n')+1:]
-            history_list[i] = yaml.load(history)
-
+            # Trim whitespaces from the end of each values.
+            history = yaml.load(history)
+            for k in history:
+                history[k] = history[k].strip()
+            history_list[i] = history
         return history_list
 
 
-    def rest_get_url(self, url):
+    @classmethod
+    def rest_get_url(cls, url):
         """
         Perform a requests get on the URL. Returns the content's text.
         This ensures that if the session disconnected, we will reconnect.
         """
-        if not self.cookies:
-            self.login()
+        if not cls.cookies:
+            cls.login()
 
-        r = requests.get(url, cookies=self.cookies)
+        r = requests.get(url, cookies=cls.cookies)
 
         if r.status_code == 302:
             # Try logging in again and do the same thing.
-            self.cookies = None
-            self.rest_get_url(url)
+            cls.cookies = None
+            cls.rest_get_url(url)
         elif r.status_code == 200:
             return r.text
 
 
-    def fix_yaml(self, text):
+    @classmethod
+    def fix_yaml(cls, text):
         """
         Fix RT's yaml so that each values can contain special characters.
         This is done by making each values multiline strings by adding a > character.
@@ -221,13 +255,32 @@ class RT:
 if __name__ == '__main__':
     import sys
 
-    rt = RT()
-
     if len(sys.argv) > 1:
         if sys.argv[1] in ["-u", "--update"]:
-            rt.update_cache()
+            RT.update_cache()
 
-    print(rt.get_ticket_from_cache(699999))
+    #s = RT.get_ticket_from_cache(699999)
+    s = RT.get_ticket(699999)
+    print(s)
+
+    RT.get_all_tickets_from_cache()
+
+    #from glob import glob
+    #ticket_files = glob("../ticket_cache/*.yaml")
+    #for file_name in ticket_files:
+    #    print(str(len(ticket_files) - ticket_files.index(file_name)))
+    #    with open(file_name) as f:
+    #        ticket = f.read()
+    #    ticket = yaml.load(ticket)
+    #    for k in ticket:
+    #        if k != 'histories':
+    #            ticket[k] = ticket[k].strip()
+
+    #    for ls in ticket['histories']:
+    #        for k in ls:
+    #            ls[k] = ls[k].strip()
+    #    with open(file_name, 'w') as f:
+    #        f.write(yaml.dump(ticket))
 
     #query = "Queue = 'uss-helpdesk' AND Created > 'now - 360 days'"
     #tickets = rt.rest_search_query(query)
