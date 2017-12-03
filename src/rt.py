@@ -119,7 +119,6 @@ class RT:
         if not os.path.isfile(file_name):
             return None
 
-        print("Retrieved ticket " + str(ticket_number))
         with open(file_name) as f:
             return json.load(f)
 

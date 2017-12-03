@@ -1,3 +1,4 @@
+from collections import namedtuple
 from glob import glob
 from rt import RT
 from datetime import datetime
@@ -10,27 +11,47 @@ class RT_Stat:
     def get_average_response_time(self, days_ago):
         """
         Get the average response time in seconds of tickets queried from given days ago.
+        Returns: average time, slowest ticket (ticket, time), fastest ticket, no response amount (amount, ticket total)
         """
         query = "Queue = 'uss-helpdesk' AND Created > 'now - " + str(days_ago) + " days'"
         tickets = RT.rest_search_query(query)
         sum_ = 0
         ticket_count = len(tickets)
-        #import pdb; pdb.set_trace()
+
+        slowest_ticket = (None, 0)  # (Ticket number, time (in sec))
+        fastest_ticket = (None, 99999)
+        no_response = 0
         for ticket in tickets:
             content = RT.get_ticket_from_cache(ticket)
+            #print("Counting ticket #" + str(ticket))
+
+            # Only get tickets from cache.
             if content == None:
-                continue
-            time = self.get_response_time(content)
-            if not time:
+                #print("Not in cache")
                 ticket_count -= 1
                 continue
+
+            time = self.get_response_time(content)
+            if not time:
+                #print("No response")
+                no_response += 1
+                ticket_count -= 1
+                continue
+
+            #print(" - Response time: " + str(time) + "s")
+            if time > slowest_ticket[1]:
+                slowest_ticket = (ticket, time)
+            if time < fastest_ticket[1]:
+                fastest_ticket = (ticket, time)
+
             sum_ += time
-        return sum_ / ticket_count
+        return sum_ / ticket_count, slowest_ticket, fastest_ticket, (no_response, len(tickets))
         
 
     def get_response_time(self, ticket_content):
         """
         Return the response time of the ticket in seconds.
+        Return None if ticket has no correspondence.
         """
         created_time = self.parse_time(ticket_content['histories'][0]['Created'])
 
