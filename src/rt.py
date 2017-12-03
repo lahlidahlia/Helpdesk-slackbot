@@ -4,6 +4,7 @@ import threading
 import time
 import re
 import yaml
+import json
 import requests
 import traceback
 
@@ -16,6 +17,7 @@ class RT:
     base_url = "https://support.oit.pdx.edu/NoAuthCAS/REST/1.0/"
     cookies = None  # Not logged in if None.
     cache_dir = "../ticket_cache/"
+
 
     @classmethod
     def __clsinit__(cls):
@@ -79,8 +81,8 @@ class RT:
         try:
             print(str(ticket_number))
             data = cls.get_ticket(ticket_number)
-            with open(cls.cache_dir + str(ticket_number) + ".yaml", "w") as f:
-                f.write(yaml.dump(data))
+            with open(cls.cache_dir + str(ticket_number) + ".json", "w") as f:
+                json.dump(data, f, indent=2, sort_keys=True)
         except:
             print("Error on " + str(ticket_number))
             with open(cls.cache_dir + "error.log", "a") as f:
@@ -113,13 +115,13 @@ class RT:
         Return the ticket as a dictionary from the cache.
         Returns None if the ticket isn't cached.
         """
-        file_name = cls.cache_dir + str(ticket_number) + ".yaml"
+        file_name = cls.cache_dir + str(ticket_number) + ".json"
         if not os.path.isfile(file_name):
             return None
 
         print("Retrieved ticket " + str(ticket_number))
         with open(file_name) as f:
-            return yaml.load(f.read())
+            return json.load(f)
 
     @classmethod
     def rest_search_query(cls, query, orderby="-created", format_="i"):
@@ -263,8 +265,6 @@ if __name__ == '__main__':
     s = RT.get_ticket(699999)
     print(s)
 
-    RT.get_all_tickets_from_cache()
-
     #from glob import glob
     #ticket_files = glob("../ticket_cache/*.yaml")
     #for file_name in ticket_files:
@@ -272,15 +272,8 @@ if __name__ == '__main__':
     #    with open(file_name) as f:
     #        ticket = f.read()
     #    ticket = yaml.load(ticket)
-    #    for k in ticket:
-    #        if k != 'histories':
-    #            ticket[k] = ticket[k].strip()
-
-    #    for ls in ticket['histories']:
-    #        for k in ls:
-    #            ls[k] = ls[k].strip()
-    #    with open(file_name, 'w') as f:
-    #        f.write(yaml.dump(ticket))
+    #    with open(file_name[:-5] + ".json", 'w') as f:
+    #        json.dump(ticket, f, indent=2, sort_keys=True)
 
     #query = "Queue = 'uss-helpdesk' AND Created > 'now - 360 days'"
     #tickets = rt.rest_search_query(query)
