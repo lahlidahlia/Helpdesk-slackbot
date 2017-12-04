@@ -51,10 +51,32 @@ class RT:
 
 
     @classmethod
+    def get_last_updated(cls):
+        with open(cls.cache_dir + "last_updated") as f:
+            return f.read().strip()
+
+
+    @classmethod
+    def get_amount_to_update(cls):
+        last_updated_date = ""
+        with open(cls.cache_dir + "last_updated") as f:
+            last_updated_date = f.read().strip()
+        query = "Queue = 'uss-helpdesk' AND LastUpdated > '" + last_updated_date + "'"
+        return len(cls.rest_search_query(query))
+
+
+    @classmethod
+    def get_cache_last_updated(cls):
+        with open(cls.cache_dir + "last_updated") as f:
+            return f.read().strip()
+
+
+    @classmethod
     def update_cache(cls):
         """
         Update the ticket since the last time it was updated.
         There needs to be a file in the cache called last_updated.
+        Returns the amount of errors if there are any.
         """
         last_updated_date = ""
         with open(cls.cache_dir + "last_updated") as f:
@@ -62,27 +84,30 @@ class RT:
 
         query = "Queue = 'uss-helpdesk' AND LastUpdated > '" + last_updated_date + "'"
         tickets = cls.rest_search_query(query)
+        error_count = 0
         print("Updating " + str(len(tickets)) + " tickets!")
         for ticket in tickets:
-            cls.update_cache_ticket(ticket)
+            if cls.update_cache_ticket(ticket):
+                error_count += 1
 
         with open(cls.cache_dir + "last_updated", "w") as f:
             f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-
-    @classmethod
-    def get_cache_last_updated(cls):
-        with open(cls.cache_dir + "last_updated") as f:
-            return f.read().strip()
+        return error_count
         
 
     @classmethod
     def update_cache_ticket(cls, ticket_number):
+        """
+        Updates a single cached ticket, or write one if it doesn't exist.
+        Returns whether it succeeds. If it doesn't it will be logged in ticket_cache/error.log
+        """
         try:
             print(str(ticket_number))
             data = cls.get_ticket(ticket_number)
             with open(cls.cache_dir + str(ticket_number) + ".json", "w") as f:
                 json.dump(data, f, indent=2, sort_keys=True)
+                return True
         except:
             print("Error on " + str(ticket_number))
             with open(cls.cache_dir + "error.log", "a") as f:
@@ -90,7 +115,7 @@ class RT:
                 f.write("Ticket: " + str(ticket_number))
                 f.write(traceback.format_exc())
                 f.write("---------------------")
-        
+                return False
 
     @classmethod
     def get_ticket(cls, ticket_number):

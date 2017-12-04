@@ -58,6 +58,20 @@ class Ticket:
                                "Fastest time: {}h, {}m, {}s, ticket #{}\n".format(*self.hms(fastest[1]), fastest[0]) + \
                                "No response: {} out of {}.\n".format(*no_response)
                     self.send_message(ctx.channel, response)
+
+
+            if ctx.command in ["!update"]:
+                pre_response = "Updating {} tickets since {}".format(RT.get_amount_to_update(), RT.get_last_updated())
+                self.send_message(ctx.channel, pre_response)
+                error_count = RT.update_cache()
+                response = "Done updating\n"
+                if error_count:
+                    response += "There were {} errors found. Check the error log to see what they were.".format(error_count)
+                self.send_message(ctx.channel, response)
+
+            if ctx.command in ["!last_updated"]:
+                response = "There are {} tickets to update since {}".format(RT.get_amount_to_update(), RT.get_last_updated())
+                self.send_message(ctx.channel, response)
                 
         except:
             self.client.rtm_send_message(ctx.channel, "An error has occured in the bot... :thinking_face:")
