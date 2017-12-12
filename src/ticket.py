@@ -1,7 +1,8 @@
-from rt_stat import RT_Stat
-from rt import RT
+from rt import *
 from listener import Listener
 import traceback
+
+
 class Ticket:
     def __init__(self, client):
         self.client = client
@@ -21,11 +22,20 @@ class Ticket:
 
     def on_message(self, ctx):
         try:  # Don't exit the bot when an error happens.
+            if ctx.command[0] != '!':
+                ticket_list = self.parse_message_for_tickets(ctx.message)
+                response = ""
+                for ticket_number in ticket_list:
+                    ticket = RT.get_ticket(ticket_number)
+                    response += self.ticket_url + str(ticket_number) + "\n" + \
+                                "Subject: " + ticket.content['Subject'] + "\n"
+                self.send_message(ctx.channel, response)
+
             if ctx.command in ["!ticket"]:
                 if len(ctx.args) == 1:
                     ticket = None
                     try:
-                        ticket = self.rt.get_ticket(ctx.args[0])
+                        ticket = RT.get_ticket(ctx.args[0])
                         self.client.rtm_send_message(ctx.channel, self.ticket_url + ctx.args[0] + "\n" +
                                                                   "Subject: " + ticket["Subject"])
                     except TypeError as e:
@@ -74,8 +84,29 @@ class Ticket:
                 self.send_message(ctx.channel, response)
                 
         except:
-            self.client.rtm_send_message(ctx.channel, "An error has occured in the bot... :thinking_face:")
+            #import pdb; pdb.set_trace()
             traceback.print_exc()
+            self.send_message(ctx.channel, "An error has occured in the bot... :thinking_face:")
+
+
+    def parse_message_for_tickets(self, message):
+        """ Parse a message and create an integer list of ticket numbers. """
+        message_split = message.split(" ")
+        ticket_list = []
+        for word in message_split:
+            if not word:
+                continue
+            if word[0] == '#':
+                try:
+                    # Make sure things behind # is a legit issue
+                    ticket_number = int(word[1:])
+                except ValueError:
+                    continue
+                if ticket_number < 0 or ticket_number in ticket_list:
+                    continue
+                ticket_list.append(ticket_number)
+        ticket_list.sort()
+        return ticket_list
 
 
     def hms(self, seconds):

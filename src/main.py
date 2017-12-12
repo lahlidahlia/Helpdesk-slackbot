@@ -1,6 +1,6 @@
 from listener import Listener
 from kudos import Kudos
-from ticket import Ticket
+import ticket
 from slackclient import SlackClient
 import time
 from pprint import pprint
@@ -22,6 +22,7 @@ class Context:
         self.arg_text = " ".join(self.args)  # Entire string after command.
         self.channel = event["channel"]
 
+
 def parse_events(events):
     print(events)
     for event in events:
@@ -39,7 +40,7 @@ if __name__ == "__main__":
     f.close()
     sc = SlackClient(slack_token)
     kudos = Kudos(sc)
-    ticket = Ticket(sc)
+    ticket = ticket.Ticket(sc)
 
     if sc.rtm_connect():
         Listener.update("on_ready")

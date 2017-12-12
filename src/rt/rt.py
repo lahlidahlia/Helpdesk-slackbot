@@ -1,3 +1,4 @@
+from . import ticket
 import os
 from datetime import datetime
 import threading
@@ -23,14 +24,13 @@ class RT:
     def __clsinit__(cls):
         try:
             # Read in user/pass.
-            f = open("../tokens/rt")
+            f = open(os.path.dirname(__file__) + "/../../tokens/rt")
             cls.username, cls.password = tuple(f.read().strip().split(":"))
             f.close()
         except Exception as e:
             traceback.print_exc()
             print("Something went wrong while reading in username/password.")
             print("Make sure you have a file /tokens/rt with only username:password")
-            f.close()
             exit()
 
         cls.login()
@@ -87,7 +87,7 @@ class RT:
         error_count = 0
         print("Updating " + str(len(tickets)) + " tickets!")
         for ticket in tickets:
-            if cls.update_cache_ticket(ticket):
+            if not cls.update_cache_ticket(ticket):
                 error_count += 1
 
         with open(cls.cache_dir + "last_updated", "w") as f:
@@ -104,14 +104,14 @@ class RT:
         """
         try:
             print(str(ticket_number))
-            data = cls.get_ticket(ticket_number)
+            data = cls.get_ticket(ticket_number).content
             with open(cls.cache_dir + str(ticket_number) + ".json", "w") as f:
                 json.dump(data, f, indent=2, sort_keys=True)
                 return True
         except:
             print("Error on " + str(ticket_number))
             with open(cls.cache_dir + "error.log", "a") as f:
-                f.write(datetime.now())
+                f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                 f.write("Ticket: " + str(ticket_number))
                 f.write(traceback.format_exc())
                 f.write("---------------------")
@@ -120,7 +120,7 @@ class RT:
     @classmethod
     def get_ticket(cls, ticket_number):
         """ 
-        Returns a ticket's properties and list of histories in a dictionary.
+        Returns a ticket's properties and list of histories as a ticket object.
 
         Errors raised: 
         - Type error if ticket number is not a number.
@@ -131,13 +131,13 @@ class RT:
         histories = cls.rest_get_ticket_histories(ticket_number)
         properties = cls.rest_get_ticket_properties(ticket_number)
         properties["histories"] = histories
-        return properties
+        return ticket.Ticket(properties)
 
 
     @classmethod
     def get_ticket_from_cache(cls, ticket_number):
         """
-        Return the ticket as a dictionary from the cache.
+        Return the ticket as a ticket object from the cache.
         Returns None if the ticket isn't cached.
         """
         file_name = cls.cache_dir + str(ticket_number) + ".json"
@@ -145,15 +145,15 @@ class RT:
             return None
 
         with open(file_name) as f:
-            return json.load(f)
+            return ticket.Ticket(json.load(f))
 
     @classmethod
     def rest_search_query(cls, query, orderby="-created", format_="i"):
         """ Run the given search query and return a list of ticket numbers. """
         url = cls.base_url + "search/ticket?query= " + query + "&orderby=" + orderby + "&format=" + format_
-        print("Query URL: " + url)
+        #print("Query URL: " + url)
         text = cls.rest_get_url(url)
-        print("Got query!")
+        #print("Got query!")
         return [int(x.split("/")[1]) for x in text.strip().splitlines()[2:]]
 
 
