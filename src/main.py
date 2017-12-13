@@ -27,11 +27,9 @@ def parse_events(events):
     print(events)
     for event in events:
         ctx = Context()
-        if "type" in event and event["type"] == "message":
+        if "type" in event and event["type"] == "message" and "text" in event:
             ctx.message_event(event)
             Listener.update("on_message", ctx)
-            if ctx.command in ["!test", "!t"]:
-                sc.rtm_send_message(channel, "Helpdesk assemble!")
 
 
 if __name__ == "__main__":
