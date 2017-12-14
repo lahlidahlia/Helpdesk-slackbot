@@ -60,13 +60,18 @@ class Ticket:
                         traceback.print_exc()
                         self.client.rtm_send_message(ctx.channel, "Invalid value. Please enter amount of days.")
                         return
-                    avg_time, slowest, fastest, no_response = self.rt_stat.get_average_response_time(days_ago)
+                    response = self.rt_stat.get_average_response_time(days_ago)
+                    if response == None:
+                        self.send_message(ctx.channel, "No tickets found for the last {} days. Do !update to update cache.".format(days_ago))
+                        return
+                    avg_time, slowest, fastest, no_response, no_response_list = response
                     avg_time = self.hms(int(avg_time))
                     response = "Response time in the last " + str(days_ago) + " days:\n" + \
-                               "Average time: {}h, {}m, {}s.".format(*avg_time) + \
-                               "\nSlowest time: {}h, {}m, {}s, ticket #{}\n".format(*self.hms(slowest[1]), slowest[0]) + \
-                               "Fastest time: {}h, {}m, {}s, ticket #{}\n".format(*self.hms(fastest[1]), fastest[0]) + \
-                               "No response: {} out of {}.\n".format(*no_response)
+                               "Average time: {:.0f}h, {:.0f}m, {:.0f}s.".format(*avg_time) + \
+                               "\nSlowest time: {:.0f}h, {:.0f}m, {:.0f}s, ticket #{}\n".format(*self.hms(slowest[1]), slowest[0]) + \
+                               "Fastest time: {:.0f}h, {:.0f}m, {:.0f}s, ticket #{}\n".format(*self.hms(fastest[1]), fastest[0]) + \
+                               "No response: {} out of {}.\n".format(*no_response) + \
+                               "No response tickets: {}.\n".format(', '.join(["#" + str(s) for s in no_response_list]))
                     self.send_message(ctx.channel, response)
 
 
