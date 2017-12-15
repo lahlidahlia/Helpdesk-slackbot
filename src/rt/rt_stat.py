@@ -8,7 +8,7 @@ class RT_Stat:
     def get_average_response_time(self, days_ago):
         """
         Get the average response time in seconds of tickets queried from given days ago.
-        Returns: average time, slowest ticket (ticket_number, time), fastest ticket, (no response amount, ticket total).
+        Returns: average time, slowest ticket (ticket_number, time), fastest ticket, (no response amount, ticket total), list of no response tickets.
         """
         query = "Queue = 'uss-helpdesk' AND Created > 'now - " + str(days_ago) + " days'"
         ticket_numbers = RT.rest_search_query(query)
@@ -50,6 +50,42 @@ class RT_Stat:
         if ticket_count == 0:
             return None
         return sum_ / ticket_count, slowest_ticket, fastest_ticket, (no_response, len(ticket_numbers)), no_response_list
+
+    def untag_blame(self):
+        """
+        Returns list of (untagged ticket, person), where person is who should have tagged it. 
+        On the basis that the first person who respond to a ticket should tag it. 
+        If there's no response then the person who resolved it should have tagged it.
+        Returns None if there is no untagged ticket.
+        """
+        query = "Created > '2015-09-13' AND Queue = 'uss-helpdesk' AND Status = 'resolved' AND ( CF.{USS_Ticket_Category} IS NULL OR CF.{USS_Ticket_Subcategory} IS NULL )"
+        ticket_numbers = RT.rest_search_query(query)
+
+        ticket_count = len(ticket_numbers)
+
+        untagged_list = []
+
+        for ticket_number in ticket_numbers:
+            ticket = RT.get_ticket_from_cache(ticket_number)
+
+            if ticket == None:
+                # Not in cache.
+                ticket_count -= 1
+                continue
+
+            if ticket.first_non_user_corr:
+                untagged_list.append((ticket_number, ticket.first_non_user_corr['Creator']))
+            else:
+                untagged_list.append((ticket_number, ticket.resolves[0]['Creator']))
+
+        if ticket_count == 0:
+            return None
+
+        return untagged_list
+
+
+
+
         
 
 if __name__ == "__main__":

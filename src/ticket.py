@@ -56,6 +56,9 @@ class Ticket:
                         if days_ago < 0:
                             self.send_message(ctx.channel, "Positive numbers please!")
                             return
+                        if days_ago > 365:
+                            self.send_message(ctx.channel, "Sorry I only have tickets up to 1 year old... :cry:")
+                            return
                     except ValueError:
                         traceback.print_exc()
                         self.client.rtm_send_message(ctx.channel, "Invalid value. Please enter amount of days.")
@@ -86,6 +89,20 @@ class Ticket:
 
             if ctx.command in ["!last_updated"]:
                 response = "There are {} tickets to update since {}".format(RT.get_amount_to_update(), RT.get_last_updated())
+                self.send_message(ctx.channel, response)
+
+
+            if ctx.command in ["!untagged"]:
+                untagged_list = self.rt_stat.untag_blame()
+                if not untagged_list:
+                    response = ":smile: Woo! All the tickets are tagged! :smile:"
+                    self.send_message(ctx.channel, response)
+                    return
+                response = ":angry: Hey! You guys didn't tag your tickets!!! :angry:\n"
+                for untagged in untagged_list:
+                    response += "#{}: {}, ".format(*untagged)
+                response = response[:-2] + ".\n"  # Replace the last comma with a period.
+                response += "(This is only for fun, it's not designed to place blame on anyone!)"
                 self.send_message(ctx.channel, response)
                 
         except:

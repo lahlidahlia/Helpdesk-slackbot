@@ -22,11 +22,17 @@ class Ticket:
         self.user = self.content['Requestors']
         # Was this ticket made by qthelper.
         self.is_qthelper = True if self.content['Creator'] == 'qthelper' else False
+        self.tag = self.content['CF.{USS_Ticket_Category}']
+        self.subtag = self.content['CF.{USS_Ticket_Subcategory}']
 
         self.correspondences = self._get_correspondences()
+        self.first_non_user_corr = self._first_corr_from_non_user()
         self.last_correspondence = None if not self.correspondences \
                                         else self.correspondences[len(self.correspondences) - 1]
+
+
         self.resolves = self._get_resolves()
+
 
 
     def _get_correspondences(self):
@@ -37,6 +43,18 @@ class Ticket:
             return None
         return [h for h in self.histories if h['Type'] == 'Correspond']
 
+
+    def _first_corr_from_non_user(self):
+        """
+        Returns first history of a correspondence from non-user.
+        """
+        for history in self.correspondences:
+            if history['Creator'] != self.user:
+                return history
+
+        return None
+                
+        
 
     def _get_resolves(self):
         """
@@ -65,7 +83,8 @@ class Ticket:
             # First correspondence is from OIT (aka replying to a ticket created by user).
             created_time = self.parse_time(self.histories[0]['Created'])
             first_corr_time = self.parse_time(corr_list[0]['Created'])
-            total_time = (first_corr_time - created_time).seconds
+            time_delta = (first_corr_time - created_time)
+            total_time += time_delta.days * 86400 + time_delta.seconds
             count = 1
 
         for i in range(len(corr_list)):
