@@ -1,3 +1,4 @@
+import string
 from rt import *
 from listener import Listener
 import traceback
@@ -23,6 +24,7 @@ class Ticket:
     def on_message(self, ctx):
         try:  # Don't exit the bot when an error happens.
             if ctx.command[0] != '!':
+            # Ticket linker.
                 ticket_list = self.parse_message_for_tickets(ctx.message)
                 response = ""
                 for ticket_number in ticket_list:
@@ -121,8 +123,9 @@ class Ticket:
                 continue
             if word[0] == '#':
                 try:
+                    # Create a 
                     # Make sure things behind # is a legit issue
-                    ticket_number = int(word[1:])
+                    ticket_number = int(word[1:].translate(str.maketrans('', '', string.punctuation)))
                 except ValueError:
                     continue
                 if ticket_number < 0 or ticket_number in ticket_list:
