@@ -74,7 +74,8 @@ class Ticket:
                                "\nSlowest time: {:.0f}h, {:.0f}m, {:.0f}s, ticket #{}\n".format(*self.hms(slowest[1]), slowest[0]) + \
                                "Fastest time: {:.0f}h, {:.0f}m, {:.0f}s, ticket #{}\n".format(*self.hms(fastest[1]), fastest[0]) + \
                                "No response: {} out of {}.\n".format(*no_response) + \
-                               "No response tickets: {}.\n".format(', '.join(["#" + str(s) for s in no_response_list]))
+                               "No response tickets: {}.\n".format(', '.join(["#" + str(s) for s in no_response_list])) + \
+                               "(Note that this does not include weekends while calculating time)"
                     self.send_message(ctx.channel, response)
 
 

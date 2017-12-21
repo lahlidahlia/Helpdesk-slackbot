@@ -1,4 +1,6 @@
+import pytz
 from datetime import datetime
+from datetime import timedelta
 
 class Ticket:
     """
@@ -79,20 +81,20 @@ class Ticket:
         total_time = 0
         count = 0
 
+        #import pdb; pdb.set_trace()
         if corr_list[0]['Creator'] != self.user:
             # First correspondence is from OIT (aka replying to a ticket created by user).
             created_time = self.parse_time(self.histories[0]['Created'])
             first_corr_time = self.parse_time(corr_list[0]['Created'])
-            time_delta = (first_corr_time - created_time)
-            total_time += time_delta.days * 86400 + time_delta.seconds
+            total_time += self.get_time_difference(created_time, first_corr_time)
             count = 1
 
         for i in range(len(corr_list)):
             if corr_list[i]['Creator'] == self.user:
                 if i+1 != len(corr_list) and corr_list[i+1]['Creator'] != self.user:
                     corr_list[i]
-                    total_time += (self.parse_time(corr_list[i-1]['Created']) - 
-                                    self.parse_time(corr_list[i]['Created'])).seconds
+                    total_time += self.get_time_difference(self.parse_time(corr_list[i]['Created']),
+                                                           self.parse_time(corr_list[i+1]['Created']))
                     count += 1
 
         if count == 0:
@@ -101,11 +103,41 @@ class Ticket:
         return total_time / count
 
 
+    def get_time_difference(self, startTime, endTime):
+        """
+        Returns the difference between two datetimes in seconds.
+        Ignores weekends. Weekends is Saturday and Sunday, aka 48 hours worth of seconds.
+        """
+        sec_in_day = 86400
+        #import pdb; pdb.set_trace()
+        if startTime.weekday() in [5, 6]:
+            # If time is weekend, use Monday instead.
+            # This does assume that replies will never be made during the weekend.
+            startTime = startTime + timedelta(days=7-startTime.weekday())
+            startTime = startTime.replace(hour=0, minute=0, second=0, microsecond=0)
+        if endTime.weekday() in [5,6]:
+            endTime = endTime + timedelta(days=7-endTime.weekday())
+            endTime = endTime.replace(hour=0, minute=0, second=0, microsecond=0)
+        time_delta = endTime - startTime
+        ret = time_delta.days * sec_in_day + time_delta.seconds
+        if endTime.weekday() < startTime.weekday():
+            ret -= sec_in_day * 2
+        if time_delta.days / 7 > 0:
+            ret -= sec_in_day * int(time_delta.days/7) * 2
+        return ret
+
+
     def parse_time(self, time):
         """
-        time (str): The time string that is given by RT.
-        Return a datetime.
+        time (str): The time string that is given by RT. RT gives UTC time, so it needs to be converted.
+        Return a datetime in the PST timezone.
         """
         time = time.strip()
-        time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
-        return time
+        time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.timezone('UTC'))
+        return time.astimezone(pytz.timezone('US/Pacific'))
+
+
+if __name__ == '__main__':
+    from rt import RT
+    t = RT.get_ticket(703703)
+    print(t.get_response_time())

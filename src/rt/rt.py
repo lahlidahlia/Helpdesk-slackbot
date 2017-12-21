@@ -112,9 +112,9 @@ class RT:
             print("Error on " + str(ticket_number))
             with open(cls.cache_dir + "error.log", "a") as f:
                 f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                f.write("Ticket: " + str(ticket_number))
-                f.write(traceback.format_exc())
-                f.write("---------------------")
+                f.write("Ticket: " + str(ticket_number) + "\n")
+                f.write(traceback.format_exc() + "\n")
+                f.write("---------------------\n")
                 return False
 
     @classmethod
