@@ -53,7 +53,7 @@ class RT_Stat:
 
     def untag_blame(self):
         """
-        Returns list of (untagged ticket, person), where person is who should have tagged it. 
+        Returns dict of {person: [tickets], ...}, where person is who should have tagged it. 
         On the basis that the first person who respond to a ticket should tag it. 
         If there's no response then the person who resolved it should have tagged it.
         Returns None if there is no untagged ticket.
@@ -63,7 +63,17 @@ class RT_Stat:
 
         ticket_count = len(ticket_numbers)
 
-        untagged_list = []
+        untagged_list = {}
+
+        def add_untagged(person, ticket_number):
+            """
+            Add the ticket number to the person's list.
+            person (str): name of the blamed person.
+            """
+            if person in untagged_list:
+                untagged_list[person].append(ticket_number)
+            else:
+                untagged_list[person] = [ticket_number]
 
         for ticket_number in ticket_numbers:
             ticket = RT.get_ticket_from_cache(ticket_number)
@@ -74,9 +84,13 @@ class RT_Stat:
                 continue
 
             if ticket.first_non_user_corr:
-                untagged_list.append((ticket_number, ticket.first_non_user_corr['Creator']))
+                # If ticket has a response from non user then blame that person.
+                #untagged_list.append((ticket_number, ticket.first_non_user_corr['Creator']))
+                add_untagged(ticket.first_non_user_corr['Creator'], ticket_number)
             else:
-                untagged_list.append((ticket_number, ticket.resolves[0]['Creator']))
+                # Else blames the person who resolved it.
+                #untagged_list.append((ticket_number, ticket.resolves[0]['Creator']))
+                add_untagged(ticket.resolves[0]['Creator'], ticket_number)
 
         if ticket_count == 0:
             return None
@@ -90,4 +104,5 @@ class RT_Stat:
 
 if __name__ == "__main__":
     rt_stat = RT_Stat()
-    print(rt_stat.get_response_time(702522))
+    #print(rt_stat.get_response_time(702522))
+    print(rt_stat.untag_blame())

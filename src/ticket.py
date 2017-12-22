@@ -96,15 +96,15 @@ class Ticket:
 
 
             if ctx.command in ["!untagged"]:
-                untagged_list = self.rt_stat.untag_blame()
-                if not untagged_list:
+                untagged = self.rt_stat.untag_blame()
+                if not untagged:
                     response = ":smile: Woo! All the tickets are tagged! :smile:"
                     self.send_message(ctx.channel, response)
                     return
                 response = ":angry: Hey! You guys didn't tag your tickets!!! :angry:\n"
-                for untagged in untagged_list:
-                    response += "#{}: {}, ".format(*untagged)
-                response = response[:-2] + ".\n"  # Replace the last comma with a period.
+                for person in untagged.keys():
+                    response += "#{}: #{}.\n".format(person, ", #".join(map(str, untagged[person])))
+                #response = response[:-2] + ".\n"  # Replace the last comma with a period.
                 response += "(This is only for fun, it's not designed to place blame on anyone!)"
                 self.send_message(ctx.channel, response)
                 

@@ -24,8 +24,8 @@ class Ticket:
         self.user = self.content['Requestors']
         # Was this ticket made by qthelper.
         self.is_qthelper = True if self.content['Creator'] == 'qthelper' else False
-        self.tag = self.content['CF.{USS_Ticket_Category}']
-        self.subtag = self.content['CF.{USS_Ticket_Subcategory}']
+        self.tag = self.content['CF.{USS_Ticket_Category}'] if 'CF.{USS_Ticket_Category}' in self.content else None
+        self.subtag = self.content['CF.{USS_Ticket_Subcategory}'] if 'CF.{USS_Ticket_Subcategory}' in self.content else None
 
         self.correspondences = self._get_correspondences()
         self.first_non_user_corr = self._first_corr_from_non_user()
