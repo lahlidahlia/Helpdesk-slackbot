@@ -44,6 +44,7 @@ if __name__ == "__main__":
         Listener.update("on_ready")
         while True:
             parse_events(sc.rtm_read())
+            Listener.update("on_loop")
             time.sleep(0.3)
     else:
         print("Connection failed")

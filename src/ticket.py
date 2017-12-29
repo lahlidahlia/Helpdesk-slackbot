@@ -9,8 +9,10 @@ class Ticket:
         self.client = client
         Listener.register(self.on_ready, "on_ready")
         Listener.register(self.on_message, "on_message")
+        Listener.register(self.on_loop, "on_loop")
         self.rt_stat = RT_Stat()
         self.ticket_url = "https://support.oit.pdx.edu/Ticket/Display.html?id="
+        self.update_thread = None
 
     def send_message(self, *args):
         """ Shortener. """
@@ -20,10 +22,18 @@ class Ticket:
     def on_ready(self):
         pass
 
+    def on_loop(self):
+        if self.update_thread and not self.update_thread.is_alive():
+            error_count = self.update_thread.result.get()
+            response = "Done updating\n"
+            if error_count:
+                response += "There were {} errors found. Check the error log to see what they were.".format(error_count)
+            self.send_message(self.update_thread.channel, response)
+            self.update_thread = None
 
     def on_message(self, ctx):
         try:  # Don't exit the bot when an error happens.
-            if ctx.command[0] != '!':
+            if ctx.command and ctx.command[0] != '!':
             # Ticket linker.
                 ticket_list = self.parse_message_for_tickets(ctx.message)
                 response = ""
@@ -84,11 +94,8 @@ class Ticket:
             if ctx.command in ["!update"]:
                 pre_response = "Updating {} tickets since {}".format(RT.get_amount_to_update(), RT.get_last_updated())
                 self.send_message(ctx.channel, pre_response)
-                error_count = RT.update_cache()
-                response = "Done updating\n"
-                if error_count:
-                    response += "There were {} errors found. Check the error log to see what they were.".format(error_count)
-                self.send_message(ctx.channel, response)
+                self.update_thread = RT.update_cache()
+                self.update_thread.channel = ctx.channel
 
             if ctx.command in ["!last_updated"]:
                 response = "There are {} tickets to update since {}".format(RT.get_amount_to_update(), RT.get_last_updated())

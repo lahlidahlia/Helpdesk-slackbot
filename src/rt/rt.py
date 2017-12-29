@@ -1,6 +1,7 @@
 from . import ticket
 import os
 from datetime import datetime
+import queue
 import threading
 import time
 import re
@@ -18,6 +19,7 @@ class RT:
     base_url = "https://support.oit.pdx.edu/NoAuthCAS/REST/1.0/"
     cookies = None  # Not logged in if None.
     cache_dir = "../ticket_cache/"
+    updating = False
 
 
     @classmethod
@@ -72,12 +74,14 @@ class RT:
 
 
     @classmethod
-    def update_cache(cls):
+    def _update_cache(cls, result):
         """
-        Update the ticket since the last time it was updated.
+        Update the cache since the last time it was updated.
         There needs to be a file in the cache called last_updated.
+        result (Queue): The thread will push the return value into the queue.
         Returns the amount of errors if there are any.
         """
+        cls.updating = True
         last_updated_date = ""
         with open(cls.cache_dir + "last_updated") as f:
             last_updated_date = f.read().strip()
@@ -93,7 +97,27 @@ class RT:
         with open(cls.cache_dir + "last_updated", "w") as f:
             f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-        return error_count
+        cls.updating = False
+        result.put(error_count)
+        return
+
+
+    @classmethod
+    def update_cache(cls):
+        """
+        Run the update thread.
+        Returns the update thread, which contains return information. The update thread will contain a Queue called results that will automatically be populated by the thread as return information.
+        Returns None if there is already an existing thread.  
+        """
+        if not cls.updating:
+            result = queue.Queue()
+            t = threading.Thread(target=cls._update_cache, args=(result,))
+            t.result = result
+            t.daemon = True
+            t.start()
+            return t
+        else:
+            return None
         
 
     @classmethod
