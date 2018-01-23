@@ -85,11 +85,9 @@ class RT_Stat:
 
             if ticket.first_non_user_corr:
                 # If ticket has a response from non user then blame that person.
-                #untagged_list.append((ticket_number, ticket.first_non_user_corr['Creator']))
                 add_untagged(ticket.first_non_user_corr['Creator'], ticket_number)
-            else:
+            elif len(ticket.resolves) and 'Creator' in ticket.resolves[0]:
                 # Else blames the person who resolved it.
-                #untagged_list.append((ticket_number, ticket.resolves[0]['Creator']))
                 add_untagged(ticket.resolves[0]['Creator'], ticket_number)
 
         if ticket_count == 0:
