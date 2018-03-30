@@ -5,7 +5,7 @@ class RT_Stat:
         pass
 
 
-    def get_average_response_time(self, days_ago):
+    def get_average_response_time(self, days_ago=30):
         """
         Get the average response time in seconds of tickets queried from given days ago.
         Returns: average time, slowest ticket (ticket_number, time), fastest ticket, (no response amount, ticket total), list of no response tickets.
@@ -96,9 +96,37 @@ class RT_Stat:
         return untagged_list
 
 
-
-
+    def ticket_touches(self, days_ago=30, username=None):
+        """ 
+        Count the ticket touches. If username is not provided, will include everyone in the result.
+        Returns a dictionary of {name: count}. If username is provided, will only return count.
+        """
+        query = "Queue = 'uss-helpdesk' AND LastUpdated > 'now - " + str(days_ago) + " days'"
+        ticket_numbers = RT.rest_search_query(query)
         
+        touch_dict = {}
+        for ticket_number in ticket_numbers:
+            ticket = RT.get_ticket_from_cache(ticket_number)
+
+            # Only get tickets from cache.
+            if ticket == None:
+                # Not in cache.
+                continue
+
+            # This also handles case one username case.
+            # Definitely slower than handling that separately, but this is cleaner.
+            # If performance is necessary, can add separate check for one username case.
+            for un in ticket.touches:
+                if un not in touch_dict:
+                    touch_dict[un] = 0
+                touch_dict[un] += 1
+                        
+        if username:
+            return touch_dict[username]
+        return touch_dict 
+                
+
+
 
 if __name__ == "__main__":
     rt_stat = RT_Stat()

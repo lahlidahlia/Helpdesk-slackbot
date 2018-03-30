@@ -17,6 +17,9 @@ class Context:
 
     def message_event(self, event):
         self.message = event["text"]
+        if not self.message:
+            # Skip any empty text.
+            return
         self.command = self.message.split(" ")[0]
         self.args = self.message.split(" ")[1:]  # List of aguments.
         self.arg_text = " ".join(self.args)  # Entire string after command.

@@ -32,6 +32,8 @@ class Ticket:
         self.last_correspondence = None if not self.correspondences \
                                         else self.correspondences[len(self.correspondences) - 1]
 
+        self.touches = self._get_touches()  # List of people that touched this ticket.
+
 
         self.resolves = self._get_resolves()
 
@@ -56,6 +58,22 @@ class Ticket:
 
         return None
                 
+
+    def _get_touches(self):
+        """
+        Return a list of people that have touched this ticket.
+        Filters out RT_System as well as users with actual email (aka not from OIT).
+        """
+        ret = []
+        for h in self.histories:
+            if '@' in h['Creator'] or 'RT_System' in h['Creator']:
+                # Filter out RT_System and emails (assuming no OIT usernames include '@'.
+                continue
+            if h['Creator'] not in ret:
+                ret.append(h['Creator'])
+        return ret
+            
+
         
 
     def _get_resolves(self):
@@ -139,5 +157,6 @@ class Ticket:
 
 if __name__ == '__main__':
     from rt import RT
-    t = RT.get_ticket(703703)
-    print(t.get_response_time())
+    t = RT.get_ticket(700000)
+    #print(t.get_response_time())
+    print(t.touches)
